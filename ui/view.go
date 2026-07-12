@@ -18,9 +18,22 @@ func (m Model) View() string {
 		return m.renderHackAnim()
 	}
 
+	if m.isFileTransfer {
+		return titleStyle.Render(" SEND FILE VIA TAILDROP ") + "\n\n" + m.fileInput.View() + "\n\n" + footerStyle.Render("[Enter]:Send  [Esc]:Cancel")
+	}
+
+	switch m.activeTab {
+	case TabServe:
+		return m.viewServe()
+	case TabLogs:
+		return m.viewLogs()
+	case TabDaemon:
+		return m.viewDaemon()
+	}
+
 	var s strings.Builder
 
-	// Title
+	s.WriteString(m.viewTabs())
 	s.WriteString(titleStyle.Render("󰒄 CTOS // TAILNET_MONITOR_ADVANCED // v2.0.0"))
 	s.WriteString("\n")
 
@@ -28,7 +41,7 @@ func (m Model) View() string {
 	if m.isSearching || m.search.Value() != "" {
 		s.WriteString(m.search.View() + "\n\n")
 	} else {
-		s.WriteString(footerStyle.Render("Press '/' to search, 'd' for details, 't' for taildrop cmd") + "\n\n")
+		s.WriteString(footerStyle.Render("[/]search [d]details [enter]ssh [c]copy-ip [t]taildrop-cmd [T]send [g]get [w]WoL [a]accept-routes [Tab]switch") + "\n\n")
 	}
 
 	// Main Layout
@@ -52,11 +65,100 @@ func (m Model) View() string {
 	return s.String()
 }
 
+func (m Model) viewTabs() string {
+	names := []string{"Devices", "Exit Nodes", "Serve", "Logs", "Daemon"}
+	var rendered []string
+	for i, name := range names {
+		if int(m.activeTab) == i {
+			rendered = append(rendered, activeTabStyle.Render(name))
+		} else {
+			rendered = append(rendered, inactiveTabStyle.Render(name))
+		}
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, rendered...) + "\n"
+}
+
+func (m Model) viewServe() string {
+	var s strings.Builder
+	s.WriteString(m.viewTabs())
+	s.WriteString(titleStyle.Render("󰒄 TAILSCALE SERVE & FUNNEL"))
+	s.WriteString("\n\n")
+	if m.serveStatus == "" {
+		s.WriteString("Fetching serve status...\n")
+	} else {
+		s.WriteString(m.serveStatus)
+	}
+	s.WriteString(footerStyle.Render("\n[r]refresh [Tab]switch [q]quit\n"))
+	return s.String()
+}
+
+func (m Model) viewDaemon() string {
+	var s strings.Builder
+	s.WriteString(m.viewTabs())
+	s.WriteString(titleStyle.Render("󰒄 TAILSCALE DAEMON STATUS"))
+	s.WriteString("\n\n")
+	s.WriteString(fmt.Sprintf("%-14s: %s\n", "HostName", m.status.Self.HostName))
+	ips := "N/A"
+	if len(m.status.Self.TailscaleIPs) > 0 {
+		ips = strings.Join(m.status.Self.TailscaleIPs, ", ")
+	}
+	s.WriteString(fmt.Sprintf("%-14s: %s\n", "Local IPs", ips))
+	s.WriteString("\n")
+	if m.notifMsg != "" {
+		s.WriteString(notifyStyle.Render(m.notifMsg) + "\n\n")
+	}
+	s.WriteString(footerStyle.Render("[u]up [d]down [s]shields-up [S]shields-down [Tab]switch [q]quit\n"))
+	return s.String()
+}
+
+func (m Model) viewLogs() string {
+	var s strings.Builder
+	s.WriteString(m.viewTabs())
+	s.WriteString(titleStyle.Render("󰒄 TAILSCALED LIVE LOGS"))
+	s.WriteString("\n\n")
+
+	headerHeight := 5
+	footerHeight := 2
+	viewHeight := m.height
+	if viewHeight == 0 {
+		viewHeight = 24
+	}
+	visibleRows := viewHeight - headerHeight - footerHeight
+	if visibleRows < 1 {
+		visibleRows = 3
+	}
+
+	start := m.logsScroll - visibleRows
+	if start < 0 {
+		start = 0
+	}
+	end := start + visibleRows
+	if end > len(m.logs) {
+		end = len(m.logs)
+	}
+
+	for i := start; i < end; i++ {
+		line := m.logs[i]
+		lower := strings.ToLower(line)
+		switch {
+		case strings.Contains(lower, "error") || strings.Contains(lower, "fail") || strings.Contains(lower, "dropped"):
+			s.WriteString(logErrStyle.Render(line) + "\n")
+		case strings.Contains(lower, "derp") || strings.Contains(lower, "fallback"):
+			s.WriteString(logWarnStyle.Render(line) + "\n")
+		default:
+			s.WriteString(logInfoStyle.Render(line) + "\n")
+		}
+	}
+
+	s.WriteString(footerStyle.Render("\n[j/k, PgUp/PgDn]scroll [Tab]switch [q]quit\n"))
+	return s.String()
+}
+
 func (m Model) renderHackAnim() string {
 	chars := []rune("!@#$%^&*()_+-=[]{}|;':,./<>?")
 	var sb strings.Builder
 	sb.WriteString("\n  [ !! ] INITIATING SECURE SHELL BYPASS...\n\n")
-	
+
 	for i := 0; i < m.hackTicks; i++ {
 		sb.WriteString("  > Decrypting key " + randomString(chars, 16) + " [OK]\n")
 	}
@@ -78,18 +180,20 @@ func getSparkline(latencies []float64) string {
 	}
 	bars := []string{" ", "▂", "▃", "▄", "▅", "▆", "▇", "█"}
 	var spark strings.Builder
-	
+
 	start := 0
 	if len(latencies) > 10 {
 		start = len(latencies) - 10
 	}
-	
+
 	for _, l := range latencies[start:] {
-		idx := int(l / 25) 
+		idx := int(l / 25)
 		if idx >= len(bars) {
 			idx = len(bars) - 1
 		}
-		if l <= 0 { idx = 0 } 
+		if l <= 0 {
+			idx = 0
+		}
 		spark.WriteString(bars[idx])
 	}
 	return spark.String()
@@ -97,12 +201,18 @@ func getSparkline(latencies []float64) string {
 
 func getOSIcon(osName string) string {
 	switch strings.ToLower(osName) {
-	case "linux": return ""
-	case "windows": return ""
-	case "macos", "darwin": return ""
-	case "android": return ""
-	case "ios": return "🍎"
-	default: return "󰌢"
+	case "linux":
+		return ""
+	case "windows":
+		return ""
+	case "macos", "darwin":
+		return ""
+	case "android":
+		return ""
+	case "ios":
+		return "🍎"
+	default:
+		return "󰌢"
 	}
 }
 
@@ -166,7 +276,7 @@ func (m Model) renderList() string {
 
 		pingDisp := "---"
 		portsDisp := "-"
-		
+
 		info := m.netInfo[p.HostName]
 		if info != nil {
 			if info.Latency > 0 {
@@ -175,11 +285,17 @@ func (m Model) renderList() string {
 			} else if p.Online || p.Active {
 				pingDisp = "timeout"
 			}
-			
+
 			var open []string
-			if info.OpenPorts[22] { open = append(open, "22") }
-			if info.OpenPorts[80] || info.OpenPorts[443] { open = append(open, "Web") }
-			if info.OpenPorts[3389] { open = append(open, "RDP") }
+			if info.OpenPorts[22] {
+				open = append(open, "22")
+			}
+			if info.OpenPorts[80] || info.OpenPorts[443] {
+				open = append(open, "Web")
+			}
+			if info.OpenPorts[3389] {
+				open = append(open, "RDP")
+			}
 			if len(open) > 0 {
 				portsDisp = strings.Join(open, ",")
 			}
@@ -195,7 +311,7 @@ func (m Model) renderList() string {
 			cStyle.Render(colConn.Render(connType)),
 			cyanStyle.Render(colPing.Render(pingDisp)),
 		)
-		
+
 		if rowBg != "" {
 			s.WriteString(lipgloss.NewStyle().Background(rowBg).Render(row) + "\n")
 		} else {
@@ -208,18 +324,18 @@ func (m Model) renderList() string {
 
 func (m Model) renderDetail(p tailscale.PeerStatus) string {
 	var sb strings.Builder
-	
+
 	sb.WriteString(titleStyle.Render(" NODE DETAILS ") + "\n\n")
 	sb.WriteString(fmt.Sprintf("%s %s\n", cyanStyle.Render("Hostname:"), p.HostName))
 	sb.WriteString(fmt.Sprintf("%s %s\n", cyanStyle.Render("DNS Name:"), p.DNSName))
 	sb.WriteString(fmt.Sprintf("%s %s\n", cyanStyle.Render("OS:      "), p.OS))
-	
+
 	if len(p.Tags) > 0 {
 		sb.WriteString(fmt.Sprintf("%s %s\n", cyanStyle.Render("Tags:    "), strings.Join(p.Tags, ", ")))
 	}
-	
+
 	sb.WriteString(fmt.Sprintf("%s %v\n", cyanStyle.Render("Exit Node:"), p.ExitNodeOption))
-	
+
 	if len(p.PrimaryRoutes) > 0 {
 		sb.WriteString(fmt.Sprintf("%s %s\n", cyanStyle.Render("Routes:  "), strings.Join(p.PrimaryRoutes, ", ")))
 	}

@@ -15,7 +15,7 @@ func main() {
 	cfg := config.LoadConfig()
 	m := ui.NewModel(cfg)
 	p := tea.NewProgram(m, tea.WithAltScreen())
-	
+
 	finalModel, err := p.Run()
 	if err != nil {
 		fmt.Printf("Fatal: %v\n", err)

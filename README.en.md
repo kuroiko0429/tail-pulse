@@ -16,13 +16,24 @@ A Watch Dogs-inspired TUI monitoring tool for keeping an eye on all devices in y
   - Node detail panel (port scan results, DNSName, tags, routes).
   - Hack animation on SSH connect.
 - **SSH integration**:
-  - Select a node and press `Enter` to SSH in immediately.
+  - Select a node and press `Enter` to SSH in immediately (SSH port auto-detected via `ssh -G`).
   - One-key copy of IP address or Taildrop command to clipboard.
 - **Node search**: Press `/` to filter nodes by hostname or IP in real time.
+- **File transfer**: Send/receive files over Taildrop (`T` to send, `g` to receive).
+- **Wake-on-LAN**: Send a magic packet to a configured MAC address (with SSH-proxy support for nodes on a different LAN).
+- **Desktop notifications**: Get notified when a node goes online/offline.
+- **Multiple tabs**:
+  - `Devices`: node list (default)
+  - `Exit Nodes`: browse and select exit node candidates
+  - `Serve`: shows `tailscale serve/funnel` status
+  - `Logs`: live `journalctl -u tailscaled` output, color-coded by severity
+  - `Daemon`: run `tailscale up/down` and toggle Shields Up/Down
 
 ## Usage
 
 ### Keybindings
+
+**Devices / Exit Nodes tabs**
 
 | Key | Action |
 | :--- | :--- |
@@ -32,8 +43,18 @@ A Watch Dogs-inspired TUI monitoring tool for keeping an eye on all devices in y
 | `d` | Toggle detail panel |
 | `c` | Copy selected node's Tailscale IP |
 | `t` | Copy Taildrop command (`tailscale file cp <file> <hostname>:`) |
+| `T` | Send a file to the selected node (Taildrop) |
+| `g` | Receive pending Taildrop files |
+| `w` | Send a Wake-on-LAN packet to the selected node |
+| `a` | Accept subnet routes (`tailscale up --accept-routes`) |
+| `E` | (Exit Nodes tab only) set selected node as exit node |
 | `Enter` | SSH into selected node |
+| `Tab` / `Shift+Tab` | Switch tabs |
 | `q` / `Ctrl+C` | Quit |
+
+**Logs tab**: `j/k`, `PgUp/PgDn` to scroll
+**Serve tab**: `r` to refresh
+**Daemon tab**: `u`=up, `d`=down, `s`=Shields Up, `S`=Shields Down
 
 ### Install
 
@@ -60,6 +81,20 @@ cd tail-pulse
 go run main.go
 ```
 
+## Configuration
+
+`~/.config/tail-pulse/config.yaml` is generated automatically on first run.
+
+```yaml
+theme: cyberpunk
+show_ping: true
+cyber_glitch: true
+ping_interval: 15       # seconds
+ports: {}                # hostname -> SSH port override
+mac_addresses: {}        # hostname -> MAC address (for Wake-on-LAN)
+wol_proxy: ""             # hostname to relay WoL packets through for nodes on another LAN
+```
+
 ## Requirements
 
 ### System
@@ -68,6 +103,8 @@ go run main.go
 - **Clipboard tool**: One of the following is required for copy functionality:
   - `wl-copy` (Wayland)
   - `pbcopy` (macOS)
+  - `xclip` (X11)
+- **journalctl**: The Logs tab requires a systemd environment with `journalctl -u tailscaled`.
 - **Nerd Fonts**: Recommended for correct icon rendering.
 
 ### Go packages
@@ -75,6 +112,7 @@ go run main.go
 - `github.com/charmbracelet/bubbletea` — TUI framework
 - `github.com/charmbracelet/lipgloss` — Styling and layout
 - `github.com/charmbracelet/bubbles` — TUI components
+- `github.com/gen2brain/beeep` — Desktop notifications
 
 ## License
 

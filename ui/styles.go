@@ -18,16 +18,16 @@ var (
 
 	// Titles
 	titleStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(bg).
-		Background(cyan).
-		Padding(0, 1).
-		MarginBottom(1)
+			Bold(true).
+			Foreground(bg).
+			Background(cyan).
+			Padding(0, 1).
+			MarginBottom(1)
 
 	headerStyle = lipgloss.NewStyle().
-		Foreground(cyan).
-		Bold(true).
-		Underline(true)
+			Foreground(cyan).
+			Bold(true).
+			Underline(true)
 
 	// Status
 	onlineStyle  = lipgloss.NewStyle().Foreground(green)
@@ -41,6 +41,15 @@ var (
 	detailStyle   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).BorderForeground(cyan).Padding(1, 2)
 	notifyStyle   = lipgloss.NewStyle().Foreground(bg).Background(cyan).Padding(0, 1).Bold(true)
 	footerStyle   = lipgloss.NewStyle().Foreground(darkGrey)
+
+	// Tabs
+	activeTabStyle   = lipgloss.NewStyle().Background(cyan).Foreground(bg).Padding(0, 2).Bold(true)
+	inactiveTabStyle = lipgloss.NewStyle().Background(darkGrey).Foreground(white).Padding(0, 2)
+
+	// Logs
+	logErrStyle  = lipgloss.NewStyle().Foreground(red)
+	logWarnStyle = lipgloss.NewStyle().Foreground(yellow)
+	logInfoStyle = lipgloss.NewStyle().Foreground(darkGrey)
 
 	// Columns
 	colHost   = lipgloss.NewStyle().Width(20).MaxHeight(1)
