@@ -35,9 +35,28 @@ A Watch Dogs-inspired TUI monitoring tool for keeping an eye on all devices in y
 | `Enter` | SSH into selected node |
 | `q` / `Ctrl+C` | Quit |
 
-### Run
+### Install
+
+**Using go install** (Go 1.21+)
 
 ```bash
+go install github.com/kuroiko0429/tail-pulse@latest
+```
+
+**Using a prebuilt binary**
+
+Download the binary for your OS from the [Releases](https://github.com/kuroiko0429/tail-pulse/releases) page and make it executable.
+
+```bash
+chmod +x tail-pulse
+./tail-pulse
+```
+
+**Running from source**
+
+```bash
+git clone https://github.com/kuroiko0429/tail-pulse.git
+cd tail-pulse
 go run main.go
 ```
 
