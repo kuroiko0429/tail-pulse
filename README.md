@@ -77,12 +77,17 @@ go install github.com/kuroiko0429/tail-pulse@latest
 
 **ビルド済みバイナリを使う場合**
 
-[Releases](https://github.com/kuroiko0429/tail-pulse/releases)からOSに合ったバイナリをダウンロードして実行権限を付与するだけ。
+[Releases](https://github.com/kuroiko0429/tail-pulse/releases)からOSに合ったバイナリをダウンロードする（例: Linux amd64）。
 
 ```bash
-chmod +x tail-pulse
-./tail-pulse
+curl -LO https://github.com/kuroiko0429/tail-pulse/releases/latest/download/tail-pulse-linux-amd64
+install -Dm755 tail-pulse-linux-amd64 ~/.local/bin/tail-pulse
+tail-pulse
 ```
+
+`~/.local/bin` がPATHに通っていない場合は先に追加しておく（例: `~/.bashrc` や `~/.zshrc` に `export PATH="$HOME/.local/bin:$PATH"`）。
+
+他のOS/アーキテクチャの場合はファイル名を読み替える: `tail-pulse-linux-arm64` / `tail-pulse-darwin-arm64`。
 
 **ソースから実行する場合**
 

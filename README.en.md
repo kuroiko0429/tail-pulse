@@ -77,12 +77,17 @@ go install github.com/kuroiko0429/tail-pulse@latest
 
 **Using a prebuilt binary**
 
-Download the binary for your OS from the [Releases](https://github.com/kuroiko0429/tail-pulse/releases) page and make it executable.
+Download the binary for your OS from the [Releases](https://github.com/kuroiko0429/tail-pulse/releases) page (example for Linux amd64):
 
 ```bash
-chmod +x tail-pulse
-./tail-pulse
+curl -LO https://github.com/kuroiko0429/tail-pulse/releases/latest/download/tail-pulse-linux-amd64
+install -Dm755 tail-pulse-linux-amd64 ~/.local/bin/tail-pulse
+tail-pulse
 ```
+
+If `~/.local/bin` isn't on your PATH yet, add it first (e.g. `export PATH="$HOME/.local/bin:$PATH"` in `~/.bashrc` or `~/.zshrc`).
+
+For other platforms, swap the filename: `tail-pulse-linux-arm64` / `tail-pulse-darwin-arm64`.
 
 **Running from source**
 
