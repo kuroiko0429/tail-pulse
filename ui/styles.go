@@ -33,7 +33,6 @@ var (
 
 	// Components
 	selectedStyle lipgloss.Style
-	detailStyle   lipgloss.Style
 	notifyStyle   lipgloss.Style
 	footerStyle   lipgloss.Style
 
@@ -47,12 +46,12 @@ var (
 	logInfoStyle lipgloss.Style
 
 	// Columns
-	colHost   = lipgloss.NewStyle().Width(20).MaxHeight(1)
+	colHost   = lipgloss.NewStyle().Width(22).MaxHeight(1)
 	colIP     = lipgloss.NewStyle().Width(16).MaxHeight(1)
 	colOS     = lipgloss.NewStyle().Width(6).MaxHeight(1)
-	colStatus = lipgloss.NewStyle().Width(10).MaxHeight(1)
-	colPorts  = lipgloss.NewStyle().Width(12).MaxHeight(1)
-	colConn   = lipgloss.NewStyle().Width(12).MaxHeight(1)
+	colStatus = lipgloss.NewStyle().Width(12).MaxHeight(1)
+	colSSH    = lipgloss.NewStyle().Width(6).MaxHeight(1)
+	colConn   = lipgloss.NewStyle().Width(15).MaxHeight(1)
 	colPing   = lipgloss.NewStyle().Width(25).MaxHeight(1)
 )
 
@@ -91,7 +90,6 @@ func InitStyles(t config.Theme) {
 	loadingStyle = lipgloss.NewStyle().Foreground(yellow).Blink(true)
 
 	selectedStyle = lipgloss.NewStyle().Background(darkGrey).Foreground(white).Bold(true)
-	detailStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).BorderForeground(cyan).Padding(1, 2)
 	notifyStyle = lipgloss.NewStyle().Foreground(bg).Background(cyan).Padding(0, 1).Bold(true)
 	footerStyle = lipgloss.NewStyle().Foreground(darkGrey)
 

@@ -329,6 +329,65 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		if m.isDetail {
+			switch msg.String() {
+			case "q", "esc", "backspace":
+				m.isDetail = false
+				return m, nil
+			case "s":
+				if p, ok := m.selectedPeer(); ok && len(p.TailscaleIPs) > 0 {
+					m.sshTarget = m.sshTargetFor(p)
+					m.hackAnimActive = true
+					m.hackTicks = 0
+					if m.cfg.CyberGlitch {
+						return m, hackTick()
+					}
+					return m, tea.Quit
+				}
+			case "a":
+				if p, ok := m.selectedPeer(); ok {
+					name := p.HostName
+					return m, runDaemonCmd("Accepting routes ("+name+")", "up", "--accept-routes")
+				}
+			case "g":
+				return m, func() tea.Msg {
+					if err := tailscale.FileGet(); err != nil {
+						return notifMsgUpdate("󰚌 " + err.Error())
+					}
+					return notifMsgUpdate("󰄬 File(s) received in current directory")
+				}
+			case "f":
+				m.isFileTransfer = true
+				m.fileInput.Focus()
+				return m, textinput.Blink
+			case "w":
+				if p, ok := m.selectedPeer(); ok {
+					mac := m.cfg.MacAddresses[p.HostName]
+					if mac == "" {
+						m.notifMsg = "󰚌 No MAC defined in config for " + p.HostName
+						return m, tea.Tick(time.Second*3, func(t time.Time) tea.Msg { return clearNotifMsg{} })
+					}
+					name := p.HostName
+					if m.cfg.WolProxy != "" && m.cfg.WolProxy != m.status.Self.HostName {
+						proxy := m.cfg.WolProxy
+						return m, func() tea.Msg {
+							if err := network.WakeOnLanViaProxy(proxy, mac); err != nil {
+								return notifMsgUpdate("󰚌 WoL Proxy error: " + err.Error())
+							}
+							return notifMsgUpdate("󰄬 Proxy-sent Magic Packet to " + name)
+						}
+					}
+					return m, func() tea.Msg {
+						if err := network.WakeOnLan(mac); err != nil {
+							return notifMsgUpdate("󰚌 WoL error: " + err.Error())
+						}
+						return notifMsgUpdate("󰄬 Sent Magic Packet to " + name)
+					}
+				}
+			}
+			return m, nil
+		}
+
 		if m.activeTab == TabLogs {
 			switch msg.String() {
 			case "q", "ctrl+c":
@@ -437,22 +496,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.filterPeers()
 			}
 			return m, textinput.Blink
-		case "d":
-			m.isDetail = !m.isDetail
 		case "enter":
-			if p, ok := m.selectedPeer(); ok && len(p.TailscaleIPs) > 0 {
-				m.sshTarget = m.sshTargetFor(p)
-				m.hackAnimActive = true
-				m.hackTicks = 0
-				if m.cfg.CyberGlitch {
-					return m, hackTick()
-				}
-				return m, tea.Quit
+			if _, ok := m.selectedPeer(); ok {
+				m.isDetail = true
+				return m, nil
 			}
 		case "c":
 			if p, ok := m.selectedPeer(); ok && len(p.TailscaleIPs) > 0 {
 				copyToClipboard(p.TailscaleIPs[0])
 				m.notifMsg = "󰅍 COPIED IP"
+				return m, tea.Tick(time.Second*2, func(t time.Time) tea.Msg { return clearNotifMsg{} })
+			}
+		case "S":
+			if p, ok := m.selectedPeer(); ok && len(p.TailscaleIPs) > 0 {
+				sshCmd := "ssh " + m.sshTargetFor(p)
+				copyToClipboard(sshCmd)
+				m.notifMsg = "󰆍 COPIED CMD: " + sshCmd
 				return m, tea.Tick(time.Second*2, func(t time.Time) tea.Msg { return clearNotifMsg{} })
 			}
 		case "t":
@@ -461,46 +520,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				copyToClipboard(cmdStr)
 				m.notifMsg = "󰅍 COPIED TAILDROP CMD"
 				return m, tea.Tick(time.Second*2, func(t time.Time) tea.Msg { return clearNotifMsg{} })
-			}
-		case "T":
-			m.isFileTransfer = true
-			m.fileInput.Focus()
-			return m, textinput.Blink
-		case "g":
-			return m, func() tea.Msg {
-				if err := tailscale.FileGet(); err != nil {
-					return notifMsgUpdate("󰚌 " + err.Error())
-				}
-				return notifMsgUpdate("󰄬 File(s) received in current directory")
-			}
-		case "a":
-			if p, ok := m.selectedPeer(); ok {
-				name := p.HostName
-				return m, runDaemonCmd("Accepting routes ("+name+")", "up", "--accept-routes")
-			}
-		case "w":
-			if p, ok := m.selectedPeer(); ok {
-				mac := m.cfg.MacAddresses[p.HostName]
-				if mac == "" {
-					m.notifMsg = "󰚌 No MAC defined in config for " + p.HostName
-					return m, tea.Tick(time.Second*3, func(t time.Time) tea.Msg { return clearNotifMsg{} })
-				}
-				name := p.HostName
-				if m.cfg.WolProxy != "" && m.cfg.WolProxy != m.status.Self.HostName {
-					proxy := m.cfg.WolProxy
-					return m, func() tea.Msg {
-						if err := network.WakeOnLanViaProxy(proxy, mac); err != nil {
-							return notifMsgUpdate("󰚌 WoL Proxy error: " + err.Error())
-						}
-						return notifMsgUpdate("󰄬 Proxy-sent Magic Packet to " + name)
-					}
-				}
-				return m, func() tea.Msg {
-					if err := network.WakeOnLan(mac); err != nil {
-						return notifMsgUpdate("󰚌 WoL error: " + err.Error())
-					}
-					return notifMsgUpdate("󰄬 Sent Magic Packet to " + name)
-				}
 			}
 		case "E":
 			if m.activeTab == TabExitNodes {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kuroiko0429/tail-pulse/tailscale"
@@ -22,6 +23,13 @@ func (m Model) View() string {
 		return titleStyle.Render(" SEND FILE VIA TAILDROP ") + "\n\n" + m.fileInput.View() + "\n\n" + footerStyle.Render("[Enter]:Send  [Esc]:Cancel")
 	}
 
+	if m.isDetail {
+		if p, ok := m.selectedPeer(); ok {
+			return m.viewDetail(p)
+		}
+		m.isDetail = false
+	}
+
 	switch m.activeTab {
 	case TabServe:
 		return m.viewServe()
@@ -34,29 +42,17 @@ func (m Model) View() string {
 	var s strings.Builder
 
 	s.WriteString(m.viewTabs())
-	s.WriteString(titleStyle.Render("󰒄 CTOS // TAILNET_MONITOR_ADVANCED // v2.0.0"))
+	s.WriteString(titleStyle.Render("󰒄 CTOS // TAILNET_MONITOR // v2.0.0"))
 	s.WriteString("\n")
 
 	// Search bar
 	if m.isSearching || m.search.Value() != "" {
 		s.WriteString(m.search.View() + "\n\n")
 	} else {
-		s.WriteString(footerStyle.Render("[/]search [d]details [enter]ssh [c]copy-ip [t]taildrop-cmd [T]send [g]get [w]WoL [a]accept-routes [Tab]switch") + "\n\n")
+		s.WriteString(footerStyle.Render("Filter: ALL | [/]search [Enter]detail [c]copy-ip [S]copy-ssh [t]taildrop-cmd [Tab]switch") + "\n\n")
 	}
 
-	// Main Layout
-	var left string
-	var right string
-
-	left = m.renderList()
-
-	if m.isDetail && len(m.peers) > m.cursor {
-		right = m.renderDetail(m.peers[m.cursor])
-		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, left, "  ", right))
-	} else {
-		s.WriteString(left)
-	}
-
+	s.WriteString(m.renderList())
 	s.WriteString("\n")
 	if m.notifMsg != "" {
 		s.WriteString(notifyStyle.Render(m.notifMsg) + "\n")
@@ -216,6 +212,11 @@ func getOSIcon(osName string) string {
 	}
 }
 
+const (
+	iconSSHDefault   = "󱘖"
+	iconTailscaleSSH = "󰣀"
+)
+
 func (m Model) renderList() string {
 	var s strings.Builder
 
@@ -225,8 +226,8 @@ func (m Model) renderList() string {
 		colIP.Render("IP"),
 		colOS.Render("OS"),
 		colStatus.Render("STATUS"),
-		colPorts.Render("PORTS"),
-		colConn.Render("CONN"),
+		colSSH.Render("SSH"),
+		colConn.Render("CONN_TYPE"),
 		colPing.Render("PING"),
 	)
 	s.WriteString(headerStyle.Render(header) + "\n")
@@ -240,11 +241,11 @@ func (m Model) renderList() string {
 		}
 
 		statusIcon := "󰄱"
-		statusText := "OFF"
+		statusText := "OFFLINE"
 		rStyle := offlineStyle
 		if p.Online || p.Active {
 			statusIcon = "󰄬"
-			statusText = "ON"
+			statusText = "ONLINE"
 			rStyle = onlineStyle
 		}
 
@@ -255,11 +256,23 @@ func (m Model) renderList() string {
 		name := p.HostName
 		if p.IsSelf {
 			name = ">> " + name
+		} else {
+			name = "  " + name
 		}
 
 		ip := "n/a"
 		if len(p.TailscaleIPs) > 0 {
 			ip = p.TailscaleIPs[0]
+		}
+
+		activeSSHIcon := iconSSHDefault
+		if p.TailscaleSSHEnabled {
+			activeSSHIcon = iconTailscaleSSH
+		}
+		info := m.netInfo[p.HostName]
+		sshIcon := lipgloss.NewStyle().Foreground(darkGrey).Render(activeSSHIcon)
+		if info != nil && info.OpenPorts[22] {
+			sshIcon = lipgloss.NewStyle().Foreground(yellow).Render(activeSSHIcon)
 		}
 
 		connType := "----"
@@ -269,35 +282,18 @@ func (m Model) renderList() string {
 				connType = "󰇚 " + p.Relay
 				cStyle = relayStyle
 			} else if p.CurAddr != "" {
-				connType = "󰄘 Dir"
+				connType = "󰄘 Direct"
 				cStyle = directStyle
 			}
 		}
 
 		pingDisp := "---"
-		portsDisp := "-"
-
-		info := m.netInfo[p.HostName]
 		if info != nil {
 			if info.Latency > 0 {
 				spark := getSparkline(info.LatencyHist)
 				pingDisp = fmt.Sprintf("%3.0fms %s", info.Latency, spark)
 			} else if p.Online || p.Active {
 				pingDisp = "timeout"
-			}
-
-			var open []string
-			if info.OpenPorts[22] {
-				open = append(open, "22")
-			}
-			if info.OpenPorts[80] || info.OpenPorts[443] {
-				open = append(open, "Web")
-			}
-			if info.OpenPorts[3389] {
-				open = append(open, "RDP")
-			}
-			if len(open) > 0 {
-				portsDisp = strings.Join(open, ",")
 			}
 		}
 
@@ -307,7 +303,7 @@ func (m Model) renderList() string {
 			colIP.Render(ip),
 			colOS.Render(getOSIcon(p.OS)),
 			rStyle.Render(colStatus.Render(statusIcon+" "+statusText)),
-			colPorts.Render(portsDisp),
+			colSSH.Render(sshIcon),
 			cStyle.Render(colConn.Render(connType)),
 			cyanStyle.Render(colPing.Render(pingDisp)),
 		)
@@ -322,39 +318,84 @@ func (m Model) renderList() string {
 	return s.String()
 }
 
-func (m Model) renderDetail(p tailscale.PeerStatus) string {
-	var sb strings.Builder
+func formatBytes(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
+}
 
-	sb.WriteString(titleStyle.Render(" NODE DETAILS ") + "\n\n")
-	sb.WriteString(fmt.Sprintf("%s %s\n", cyanStyle.Render("Hostname:"), p.HostName))
-	sb.WriteString(fmt.Sprintf("%s %s\n", cyanStyle.Render("DNS Name:"), p.DNSName))
-	sb.WriteString(fmt.Sprintf("%s %s\n", cyanStyle.Render("OS:      "), p.OS))
+func (m Model) viewDetail(p tailscale.PeerStatus) string {
+	var s strings.Builder
+	s.WriteString(titleStyle.Render("󰒄 CTOS // DETAILED_INFO // " + p.HostName))
+	s.WriteString("\n\n")
+
+	ipList := "N/A"
+	if len(p.TailscaleIPs) > 0 {
+		ipList = strings.Join(p.TailscaleIPs, ", ")
+	}
+	routeStr := "None"
+	if len(p.PrimaryRoutes) > 0 {
+		routeStr = strings.Join(p.PrimaryRoutes, ", ")
+	}
+	macStr := "Not Configured"
+	if m.cfg.MacAddresses[p.HostName] != "" {
+		macStr = m.cfg.MacAddresses[p.HostName]
+	}
+
+	s.WriteString(fmt.Sprintf("%-16s: %s\n", "DNSName", p.DNSName))
+	s.WriteString(fmt.Sprintf("%-16s: %s\n", "Tailnet IPs", ipList))
+	s.WriteString(fmt.Sprintf("%-16s: %s\n", "OS", p.OS))
+	s.WriteString(fmt.Sprintf("%-16s: %t\n", "Online", p.Online))
+	s.WriteString(fmt.Sprintf("%-16s: %t\n", "TailscaleSSH", p.TailscaleSSHEnabled))
+
+	expiryStr := "N/A"
+	if !p.KeyExpiry.IsZero() {
+		expiryStr = p.KeyExpiry.Format("2006-01-02 15:04")
+		if time.Until(p.KeyExpiry) < 14*24*time.Hour {
+			expiryStr = logErrStyle.Render(expiryStr + " (EXPIRES SOON)")
+		}
+	}
+	s.WriteString(fmt.Sprintf("%-16s: %s\n", "Key Expiry", expiryStr))
+
+	s.WriteString(fmt.Sprintf("%-16s: %s\n", "Subnet Routes", routeStr))
+	s.WriteString(fmt.Sprintf("%-16s: Tx: %s / Rx: %s\n", "Bandwidth", formatBytes(p.TxBytes), formatBytes(p.RxBytes)))
+	s.WriteString(fmt.Sprintf("%-16s: %s\n", "WoL MAC Address", macStr))
 
 	if len(p.Tags) > 0 {
-		sb.WriteString(fmt.Sprintf("%s %s\n", cyanStyle.Render("Tags:    "), strings.Join(p.Tags, ", ")))
+		s.WriteString(fmt.Sprintf("%-16s: %s\n", "Tags", strings.Join(p.Tags, ", ")))
+	} else {
+		s.WriteString(fmt.Sprintf("%-16s: %s\n", "Tags", "None"))
 	}
 
-	sb.WriteString(fmt.Sprintf("%s %v\n", cyanStyle.Render("Exit Node:"), p.ExitNodeOption))
-
-	if len(p.PrimaryRoutes) > 0 {
-		sb.WriteString(fmt.Sprintf("%s %s\n", cyanStyle.Render("Routes:  "), strings.Join(p.PrimaryRoutes, ", ")))
-	}
-
-	info := m.netInfo[p.HostName]
-	if info != nil {
-		sb.WriteString("\n" + cyanStyle.Render("[ Port Scan Results ]") + "\n")
-		for port, open := range info.OpenPorts {
+	if info := m.netInfo[p.HostName]; info != nil && len(info.OpenPorts) > 0 {
+		s.WriteString("\n" + cyanStyle.Render("[ Port Scan Results ]") + "\n")
+		for _, port := range []int{22, 80, 443, 3389, 5900} {
 			state := "CLOSED"
 			color := darkGrey
-			if open {
+			if info.OpenPorts[port] {
 				state = "OPEN"
 				color = green
 			}
-			sb.WriteString(fmt.Sprintf(" %4d: %s\n", port, lipgloss.NewStyle().Foreground(color).Render(state)))
+			s.WriteString(fmt.Sprintf(" %4d: %s\n", port, lipgloss.NewStyle().Foreground(color).Render(state)))
 		}
 	}
+	s.WriteString("\n\n")
 
-	return detailStyle.Render(sb.String())
+	if m.notifMsg != "" {
+		s.WriteString(notifyStyle.Render(m.notifMsg) + "\n")
+	} else {
+		s.WriteString("\n")
+	}
+
+	s.WriteString(footerStyle.Render("\n 󰌌 [s]:SSH | [g]:Get File | [f]:Send File | [a]:Accept Routes | [w]:WoL | [Esc]:Back\n"))
+	return s.String()
 }
 
 func (m Model) GetSSHTarget() string {

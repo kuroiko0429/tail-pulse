@@ -16,11 +16,11 @@ A Watch Dogs-inspired TUI monitoring tool for keeping an eye on all devices in y
   - Node detail panel (port scan results, DNSName, tags, routes).
   - Hack animation on SSH connect.
 - **SSH integration**:
-  - Select a node and press `Enter` to SSH in immediately (SSH port auto-detected via `ssh -G`).
-  - One-key copy of IP address or Taildrop command to clipboard.
+  - Select a node and press `Enter` to open its detail screen, then `s` to SSH in (SSH port auto-detected via `ssh -G`).
+  - One-key copy of IP address, SSH command, or Taildrop command to clipboard.
 - **Node search**: Press `/` to filter nodes by hostname or IP in real time.
-- **File transfer**: Send/receive files over Taildrop (`T` to send, `g` to receive).
-- **Wake-on-LAN**: Send a magic packet to a configured MAC address (with SSH-proxy support for nodes on a different LAN).
+- **File transfer**: Send/receive files over Taildrop (from the detail screen: `f` to send, `g` to receive).
+- **Wake-on-LAN**: Send a magic packet to a configured MAC address (with SSH-proxy support for nodes on a different LAN, via `w` in the detail screen).
 - **Desktop notifications**: Get notified when a node goes online/offline.
 - **Multiple tabs**:
   - `Devices`: node list (default)
@@ -33,24 +33,31 @@ A Watch Dogs-inspired TUI monitoring tool for keeping an eye on all devices in y
 
 ### Keybindings
 
-**Devices / Exit Nodes tabs**
+**Devices / Exit Nodes tabs (list view)**
 
 | Key | Action |
 | :--- | :--- |
 | `j` / `↓` | Move down |
 | `k` / `↑` | Move up |
 | `/` | Search nodes |
-| `d` | Toggle detail panel |
+| `Enter` | Open the selected node's detail screen |
 | `c` | Copy selected node's Tailscale IP |
+| `S` | Copy the SSH command for the selected node |
 | `t` | Copy Taildrop command (`tailscale file cp <file> <hostname>:`) |
-| `T` | Send a file to the selected node (Taildrop) |
-| `g` | Receive pending Taildrop files |
-| `w` | Send a Wake-on-LAN packet to the selected node |
-| `a` | Accept subnet routes (`tailscale up --accept-routes`) |
 | `E` | (Exit Nodes tab only) set selected node as exit node |
-| `Enter` | SSH into selected node |
 | `Tab` / `Shift+Tab` | Switch tabs |
 | `q` / `Ctrl+C` | Quit |
+
+**Detail screen** (`Enter` from the list)
+
+| Key | Action |
+| :--- | :--- |
+| `s` | SSH into this node |
+| `f` | Send a file to this node (Taildrop) |
+| `g` | Receive pending Taildrop files |
+| `a` | Accept subnet routes (`tailscale up --accept-routes`) |
+| `w` | Send a Wake-on-LAN packet |
+| `Esc` / `q` / `Backspace` | Back to the list |
 
 **Logs tab**: `j/k`, `PgUp/PgDn` to scroll
 **Serve tab**: `r` to refresh
