@@ -86,7 +86,17 @@ go run main.go
 初回起動時に `~/.config/tail-pulse/config.yaml` が自動生成されます。
 
 ```yaml
-theme: cyberpunk
+theme:
+  cyan: "#83a598"
+  dark_grey: "#928374"
+  red: "#fb4934"
+  white: "#ebdbb2"
+  green: "#8ec07c"
+  yellow: "#fabd2f"
+  background: "#282828"
+  tab_active: "#83a598"
+  tab_inactive: "#3c3836"
+  highlight: "#d3869b"
 show_ping: true
 cyber_glitch: true
 ping_interval: 15       # 秒
@@ -94,6 +104,8 @@ ports: {}                # ホスト名 -> SSHポートの上書き
 mac_addresses: {}        # ホスト名 -> MACアドレス(Wake-on-LAN用)
 wol_proxy: ""             # 別LANのノードを起こす際に踏み台にするホスト名
 ```
+
+デフォルトはGruvboxテーマ。`theme`以下の色コードを書き換えれば好きな配色にできる。
 
 ## 依存関係
 

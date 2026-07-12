@@ -93,6 +93,8 @@ type Model struct {
 }
 
 func NewModel(cfg config.Config) Model {
+	InitStyles(cfg.Theme)
+
 	ti := textinput.New()
 	ti.Placeholder = "Search nodes..."
 	ti.CharLimit = 156

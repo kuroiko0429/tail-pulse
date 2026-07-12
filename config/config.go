@@ -7,8 +7,36 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type Theme struct {
+	Cyan        string `yaml:"cyan"`
+	DarkGrey    string `yaml:"dark_grey"`
+	Red         string `yaml:"red"`
+	White       string `yaml:"white"`
+	Green       string `yaml:"green"`
+	Yellow      string `yaml:"yellow"`
+	Background  string `yaml:"background"`
+	TabActive   string `yaml:"tab_active"`
+	TabInactive string `yaml:"tab_inactive"`
+	Highlight   string `yaml:"highlight"`
+}
+
+// GruvboxTheme is the default palette, matching the Gruvbox dark colorscheme
+// used across the rest of this user's setup.
+var GruvboxTheme = Theme{
+	Cyan:        "#83a598",
+	DarkGrey:    "#928374",
+	Red:         "#fb4934",
+	White:       "#ebdbb2",
+	Green:       "#8ec07c",
+	Yellow:      "#fabd2f",
+	Background:  "#282828",
+	TabActive:   "#83a598",
+	TabInactive: "#3c3836",
+	Highlight:   "#d3869b",
+}
+
 type Config struct {
-	Theme        string            `yaml:"theme"`
+	Theme        Theme             `yaml:"theme"`
 	ShowPing     bool              `yaml:"show_ping"`
 	CyberGlitch  bool              `yaml:"cyber_glitch"`
 	PingInterval int               `yaml:"ping_interval"`
@@ -18,13 +46,46 @@ type Config struct {
 }
 
 var DefaultConfig = Config{
-	Theme:        "cyberpunk",
+	Theme:        GruvboxTheme,
 	ShowPing:     true,
 	CyberGlitch:  true,
 	PingInterval: 15,
 	Ports:        map[string]string{},
 	MacAddresses: map[string]string{},
 	WolProxy:     "",
+}
+
+func fillThemeDefaults(t *Theme) {
+	if t.Cyan == "" {
+		t.Cyan = GruvboxTheme.Cyan
+	}
+	if t.DarkGrey == "" {
+		t.DarkGrey = GruvboxTheme.DarkGrey
+	}
+	if t.Red == "" {
+		t.Red = GruvboxTheme.Red
+	}
+	if t.White == "" {
+		t.White = GruvboxTheme.White
+	}
+	if t.Green == "" {
+		t.Green = GruvboxTheme.Green
+	}
+	if t.Yellow == "" {
+		t.Yellow = GruvboxTheme.Yellow
+	}
+	if t.Background == "" {
+		t.Background = GruvboxTheme.Background
+	}
+	if t.TabActive == "" {
+		t.TabActive = GruvboxTheme.TabActive
+	}
+	if t.TabInactive == "" {
+		t.TabInactive = GruvboxTheme.TabInactive
+	}
+	if t.Highlight == "" {
+		t.Highlight = GruvboxTheme.Highlight
+	}
 }
 
 func LoadConfig() Config {
@@ -63,5 +124,6 @@ func LoadConfig() Config {
 	if conf.PingInterval <= 0 {
 		conf.PingInterval = 15
 	}
+	fillThemeDefaults(&conf.Theme)
 	return conf
 }
