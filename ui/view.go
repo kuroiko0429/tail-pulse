@@ -49,7 +49,7 @@ func (m Model) View() string {
 	if m.isSearching || m.search.Value() != "" {
 		s.WriteString(m.search.View() + "\n\n")
 	} else {
-		s.WriteString(footerStyle.Render("Filter: ALL | [/]search [Enter]detail [c]copy-ip [S]copy-ssh [t]taildrop-cmd [Tab]switch") + "\n\n")
+		s.WriteString(footerStyle.Render(fmt.Sprintf("Sort: %v (press 's') | [/]search [Enter]detail [c]copy-ip [S]copy-ssh [t]taildrop-cmd [Tab]switch", m.sortMode)) + "\n\n")
 	}
 
 	s.WriteString(m.renderList())

@@ -17,6 +17,28 @@ import (
 	"github.com/kuroiko0429/tail-pulse/tailscale"
 )
 
+type SortMode int
+
+const (
+	SortByName SortMode = iota
+	SortByIP
+	SortByOS
+	SortByPing
+)
+
+func (s SortMode) String() string {
+	switch s {
+	case SortByIP:
+		return "IP"
+	case SortByOS:
+		return "OS"
+	case SortByPing:
+		return "Ping"
+	default:
+		return "Name"
+	}
+}
+
 type TabMode int
 
 const (
@@ -70,6 +92,7 @@ type Model struct {
 	isSearching bool
 	isDetail    bool
 	activeTab   TabMode
+	sortMode    SortMode
 
 	notifMsg       string
 	sshTarget      string
@@ -213,7 +236,42 @@ func (m *Model) filterPeers() {
 	}
 
 	sort.Slice(list, func(i, j int) bool {
-		return list[i].HostName < list[j].HostName
+		switch m.sortMode {
+		case SortByIP:
+			ip1, ip2 := "", ""
+			if len(list[i].TailscaleIPs) > 0 {
+				ip1 = list[i].TailscaleIPs[0]
+			}
+			if len(list[j].TailscaleIPs) > 0 {
+				ip2 = list[j].TailscaleIPs[0]
+			}
+			return ip1 < ip2
+		case SortByOS:
+			if list[i].OS == list[j].OS {
+				return list[i].HostName < list[j].HostName
+			}
+			return list[i].OS < list[j].OS
+		case SortByPing:
+			valI, valJ := 0.0, 0.0
+			if info, ok := m.netInfo[list[i].HostName]; ok {
+				valI = info.Latency
+			}
+			if info, ok := m.netInfo[list[j].HostName]; ok {
+				valJ = info.Latency
+			}
+			if valI == valJ {
+				return list[i].HostName < list[j].HostName
+			}
+			if valI == 0 {
+				return false
+			}
+			if valJ == 0 {
+				return true
+			}
+			return valI < valJ
+		default:
+			return list[i].HostName < list[j].HostName
+		}
 	})
 	m.peers = list
 
@@ -501,6 +559,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.isDetail = true
 				return m, nil
 			}
+		case "s":
+			m.sortMode = (m.sortMode + 1) % 4
+			m.filterPeers()
 		case "c":
 			if p, ok := m.selectedPeer(); ok && len(p.TailscaleIPs) > 0 {
 				copyToClipboard(p.TailscaleIPs[0])

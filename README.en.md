@@ -40,6 +40,7 @@ A Watch Dogs-inspired TUI monitoring tool for keeping an eye on all devices in y
 | `j` / `↓` | Move down |
 | `k` / `↑` | Move up |
 | `/` | Search nodes |
+| `s` | Cycle sort order (Name → IP → OS → Ping) |
 | `Enter` | Open the selected node's detail screen |
 | `c` | Copy selected node's Tailscale IP |
 | `S` | Copy the SSH command for the selected node |
