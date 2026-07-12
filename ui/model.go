@@ -70,6 +70,7 @@ type clearNotifMsg struct{}
 type pingResultMsg struct {
 	host    string
 	latency float64
+	path    string
 	ports   map[int]bool
 }
 type portUpdateMsg struct {
@@ -87,12 +88,13 @@ type Model struct {
 	sshPorts   map[string]string
 	lastOnline map[string]bool
 
-	cursor      int
-	search      textinput.Model
-	isSearching bool
-	isDetail    bool
-	activeTab   TabMode
-	sortMode    SortMode
+	cursor         int
+	search         textinput.Model
+	isSearching    bool
+	isDetail       bool
+	activeTab      TabMode
+	sortMode       SortMode
+	showOnlineOnly bool
 
 	notifMsg       string
 	sshTarget      string
@@ -217,6 +219,9 @@ func (m *Model) filterPeers() {
 			if !p.ExitNodeOption && !p.ExitNode {
 				continue
 			}
+			if m.showOnlineOnly && !p.Online {
+				continue
+			}
 			if query != "" && !strings.Contains(strings.ToLower(p.HostName), query) {
 				continue
 			}
@@ -229,6 +234,9 @@ func (m *Model) filterPeers() {
 			}
 		}
 		for _, p := range m.status.Peer {
+			if m.showOnlineOnly && !p.Online {
+				continue
+			}
 			if query == "" || strings.Contains(strings.ToLower(p.HostName), query) || strings.Contains(strings.ToLower(strings.Join(p.TailscaleIPs, " ")), query) {
 				list = append(list, p)
 			}
@@ -534,6 +542,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor < len(m.peers)-1 {
 				m.cursor++
 			}
+		case "pgup":
+			m.cursor -= 10
+			if m.cursor < 0 {
+				m.cursor = 0
+			}
+		case "pgdown":
+			m.cursor += 10
+			if m.cursor >= len(m.peers) {
+				m.cursor = len(m.peers) - 1
+			}
+		case "o":
+			m.showOnlineOnly = !m.showOnlineOnly
+			m.filterPeers()
+		case "r":
+			m.notifMsg = "󰑐 Refreshing network status..."
+			cmds = append(cmds, func() tea.Msg { return tickMsg(time.Now()) })
+			cmds = append(cmds, tea.Tick(time.Second*2, func(t time.Time) tea.Msg { return clearNotifMsg{} }))
+			return m, tea.Batch(cmds...)
 		case "tab":
 			m.activeTab = (m.activeTab + 1) % tabCount
 			m.filterPeers()
@@ -599,6 +625,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		info := m.netInfo[msg.host]
 		info.Latency = msg.latency
+		info.Path = msg.path
 		info.OpenPorts = msg.ports
 		info.LatencyHist = append(info.LatencyHist, msg.latency)
 		if len(info.LatencyHist) > 20 {
@@ -634,9 +661,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						cmds = append(cmds, resolveSSHPort(host))
 					}
 					cmds = append(cmds, func() tea.Msg {
-						lat := network.Ping(ip)
+						lat, path := tailscale.Ping(ip)
 						ports := network.CheckPorts(ip)
-						return pingResultMsg{host: host, latency: lat, ports: ports}
+						return pingResultMsg{host: host, latency: lat, path: path, ports: ports}
 					})
 				}
 			}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -26,7 +27,7 @@ func main() {
 	target := updatedModel.GetSSHTarget()
 	if target != "" {
 		fmt.Printf("\033[32m[SYS] Handing over to native SSH client for %s...\033[0m\n", target)
-		cmd := exec.Command("ssh", target)
+		cmd := exec.Command("ssh", strings.Fields(target)...)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr

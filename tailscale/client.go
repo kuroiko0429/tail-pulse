@@ -116,3 +116,27 @@ func DaemonCmd(args ...string) error {
 	}
 	return nil
 }
+
+// Ping runs `tailscale ping` against an IP and reports latency plus the
+// connection path (DERP region or Direct).
+func Ping(ip string) (latencyMs float64, path string) {
+	start := time.Now()
+	out, err := exec.Command("tailscale", "ping", "-c", "1", "--timeout=1s", ip).Output()
+	if err != nil {
+		return 0, ""
+	}
+	latencyMs = float64(time.Since(start).Milliseconds())
+	outStr := string(out)
+	if strings.Contains(outStr, "via DERP") {
+		parts := strings.Split(outStr, "via DERP")
+		if len(parts) > 1 {
+			reg := strings.SplitN(parts[1], ")", 2)[0]
+			path = "DERP" + reg + ")"
+		} else {
+			path = "DERP"
+		}
+	} else if strings.Contains(outStr, "via ") {
+		path = "Direct"
+	}
+	return latencyMs, path
+}

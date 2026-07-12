@@ -39,7 +39,10 @@ A Watch Dogs-inspired TUI monitoring tool for keeping an eye on all devices in y
 | :--- | :--- |
 | `j` / `↓` | Move down |
 | `k` / `↑` | Move up |
+| `PgUp` / `PgDn` | Jump 10 rows |
 | `/` | Search nodes |
+| `o` | Toggle online-only filter |
+| `r` | Manual refresh |
 | `s` | Cycle sort order (Name → IP → OS → Ping) |
 | `Enter` | Open the selected node's detail screen |
 | `c` | Copy selected node's Tailscale IP |

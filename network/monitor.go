@@ -13,6 +13,7 @@ type NodeNetInfo struct {
 	Latency     float64
 	LatencyHist []float64
 	OpenPorts   map[int]bool
+	Path        string // "Direct", "DERP(...)", or "" if unknown
 }
 
 var commonPorts = []int{22, 80, 443, 3389, 5900}
@@ -31,27 +32,6 @@ func CheckPorts(ip string) map[int]bool {
 		}
 	}
 	return results
-}
-
-func Ping(ip string) float64 {
-	start := time.Now()
-	cmd := exec.Command("ping", "-c", "1", "-W", "1", ip)
-	err := cmd.Run()
-	if err != nil {
-		return 0
-	}
-	return float64(time.Since(start).Milliseconds())
-}
-
-// CanConnect checks whether a TCP connection can be made to host:port within a
-// short timeout — used to detect whether SSH is actually reachable.
-func CanConnect(ip, port string) bool {
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, port), time.Second)
-	if err != nil {
-		return false
-	}
-	conn.Close()
-	return true
 }
 
 // WakeOnLan sends a magic packet to the given MAC address as a UDP broadcast

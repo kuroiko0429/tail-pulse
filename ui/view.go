@@ -49,7 +49,11 @@ func (m Model) View() string {
 	if m.isSearching || m.search.Value() != "" {
 		s.WriteString(m.search.View() + "\n\n")
 	} else {
-		s.WriteString(footerStyle.Render(fmt.Sprintf("Sort: %v (press 's') | [/]search [Enter]detail [c]copy-ip [S]copy-ssh [t]taildrop-cmd [Tab]switch", m.sortMode)) + "\n\n")
+		filterStatus := "ALL"
+		if m.showOnlineOnly {
+			filterStatus = "ONLINE ONLY"
+		}
+		s.WriteString(footerStyle.Render(fmt.Sprintf("Filter: %s (press 'o') | Sort: %v (press 's') | [/]search [Enter]detail [c]copy-ip [S]copy-ssh [t]taildrop-cmd [r]refresh [Tab]switch", filterStatus, m.sortMode)) + "\n\n")
 	}
 
 	s.WriteString(m.renderList())
@@ -291,7 +295,11 @@ func (m Model) renderList() string {
 		if info != nil {
 			if info.Latency > 0 {
 				spark := getSparkline(info.LatencyHist)
-				pingDisp = fmt.Sprintf("%3.0fms %s", info.Latency, spark)
+				if info.Path != "" {
+					pingDisp = fmt.Sprintf("%3.0fms%s %s", info.Latency, spark, info.Path)
+				} else {
+					pingDisp = fmt.Sprintf("%3.0fms %s", info.Latency, spark)
+				}
 			} else if p.Online || p.Active {
 				pingDisp = "timeout"
 			}
